@@ -1,5 +1,6 @@
 # Curator service
 This service would do the following:
+
     - service discovery (but kubernetes does it for us)
     - load balancing (but kubernetes does it for us)
     - auto-scaling (but kubernetes does it for us)
