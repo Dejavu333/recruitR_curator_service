@@ -11,4 +11,4 @@ This service would do the following:
     - authentication by curating the identity provider service
     - authorization by curating the identity provider service
     - monitoring by curating the monitoring service
-    - business logic by curating the quiz service and the notifier service
+    - curating the quiz service and the notifier service
