@@ -8,6 +8,7 @@ This service would do the following:
     - rate limiting
     - caching
     - validation
+    - versioning
     - authentication by curating the identity provider service
     - authorization by curating the identity provider service
     - monitoring by curating the monitoring service

@@ -1,4 +1,5 @@
 const express = require('express');
+const { check, validationResult } = require('express-validator');
 const axios = require('axios');
 const bodyParser = require('body-parser');
 const swaggerJsdoc = require('swagger-jsdoc');
@@ -16,6 +17,9 @@ const AUTHZ_ROUTE = process.env.AUTHZ_ROUTE_ENVV || "authZ";
 //identity_provider_service
 const IDENTITY_PROVIDER_SERVICE_HOST = process.env.IDENTITY_PROVIDER_SERVICE_HOST_ENVV || "http://localhost"
 const IDENTITY_PROVIDER_SERVICE_PORT = process.env.IDNTITY_PROVIDER_SERVICE_PORT_ENVV || 6000;
+//quiz_service
+const QUIZ_SERVICE_HOST = process.env.QUIZ_SERVICE_HOST_ENVV || "http://localhost"
+const QUIZ_SERVICE_PORT = process.env.QUIZ_SERVICE_PORT_ENVV || 5100;
 
 // webapp
 const app = express();
@@ -39,7 +43,37 @@ const options = {
   apis: ['./main.js'], // point to the file where JSDoc comments are written.
 };
 const specs = swaggerJsdoc(options);
-fs.writeFileSync('./OAS.json', JSON.stringify(specs, null, 2));
+fs.writeFileSync('../docs/OAS.json', JSON.stringify(specs, null, 2));
+
+// Middleware to validate the request
+const validateRequest = [
+  check('owneremail')
+    .optional()
+    .isEmail()
+    .withMessage('Invalid email format'),
+
+  check('id')
+    .optional()
+    .isMongoId()
+    .withMessage('Invalid BSON ObjectId'),
+
+  check('title')
+    .optional()
+    .notEmpty()
+    .isLength({ min: 4 })
+    .withMessage('Title must not be empty and must be longer than 3 characters'),
+
+  async (req, res, next) => {
+    // Check for validation errors
+    const errors = validationResult(req);
+
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    next(); // Proceed to the route handler if validation passes
+  }
+];
 
 //-------------------------------------------------------------------------
 // identity provider service related endpoints
@@ -73,7 +107,8 @@ app.post(`/api/v1/${REGISTER_ROUTE}`, async (req, res) => {
   // if (!req.body.email|| !req.body.password) {
   //   res.status(400).json({ message: "Bad request!" });
   //   return;
-  // }
+  // }  
+  // todo syntactic validation
   try {
     const registerResult = await axios.post(IDENTITY_PROVIDER_SERVICE_HOST + ':' + IDENTITY_PROVIDER_SERVICE_PORT + `/api/v1/${REGISTER_ROUTE}`, req.body);
     res.json(registerResult.data);
@@ -125,29 +160,49 @@ app.post(`/api/v1/${AUTHN_ROUTE}`, async (req, res) => {
 //-------------------------------------------------------------------------
 /**
  * @swagger
- * /api/v1/browse-quizzes:
+ * /api/v1/browse_quizzes:
  *   get:
  *     summary: Browse available quizzes
  *     security:
  *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: id
+ *         schema:
+ *           type: string
+ *         description: The ID of the quiz.
+ *       - in: query
+ *         name: title
+ *         schema:
+ *           type: string
+ *         description: The title of the quiz.
+ *       - in: query
+ *         name: owneremail
+ *         schema:
+ *           type: string
+ *         description: The email of the owner of the quiz.
  *     responses:
  *       200:
- *         description: Quizzes retrieved successfully
+ *         description: Quiz(zes) retrieved successfully
  *         content:
  *           application/json:
  *             schema:
- *               type: object
- *               properties:
- *                 message:
- *                   type: string
+ *               $ref: '#/components/schemas/Quiz'
  *       401:
  *         description: Not authorized
+ *       404:
+ *        description: Quiz(zes) not found
  */
-app.get('/api/v1/browse-quizzes', async (req, res) => {
-  if (! await isAuthorized(req)) res.json({ message: "Not authorized!" });
-  //retreive quizzes
-  else res.json({ message: "Quizzes retreived!" });
+app.get('/api/v1/browse_quizzes', validateRequest, async (req, res) => {
+  // if (! await isAuthorized(req)) res.json({ message: "Not authorized!" });
 
+  try {
+    const browseQuizzesResult = await axios.get(QUIZ_SERVICE_HOST + ':' + QUIZ_SERVICE_PORT + `/api/v1/browse_quizzes`, { params: req.query });
+    res.json(browseQuizzesResult.data);
+  } catch (error) {
+    res.json(error.response.statusText);
+    console.log(error);
+  }
 });
 
 app.post('/api/v1/create-quiz', (req, res) => {
@@ -206,3 +261,45 @@ async function isAuthorized(req) {
     throw error
   }
 }
+
+
+
+/**
+ * @swagger
+ * components:
+ *   schemas:
+ *     Quiz:
+ *       type: object
+ *       properties:
+ *         id:
+ *           type: string
+ *           description: The ID of the quiz.
+ *         title:
+ *           type: string
+ *           description: The title of the quiz.
+ *         ownerEmail:
+ *           type: string
+ *           description: The email of the owner of the quiz.
+ *         overallTimeLimit:
+ *           type: integer
+ *           description: The overall time limit for the quiz in seconds.
+ *         quizQuestions:
+ *           type: array
+ *           items:
+ *             $ref: '#/components/schemas/QuizQuestion'
+ *
+ *     QuizQuestion:
+ *       type: object
+ *       properties:
+ *         question:
+ *           type: string
+ *           description: The quiz question.
+ *         choices:
+ *           type: array
+ *           items:
+ *             type: string
+ *             description: The choices for the question.
+ *         answerInd:
+ *           type: integer
+ *           description: The index of the correct answer in the choices array.
+ */

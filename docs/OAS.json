@@ -80,7 +80,7 @@
         }
       }
     },
-    "/api/v1/browse-quizzes": {
+    "/api/v1/browse_quizzes": {
       "get": {
         "summary": "Browse available quizzes",
         "security": [
@@ -88,24 +88,48 @@
             "bearerAuth": []
           }
         ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "id",
+            "schema": {
+              "type": "string"
+            },
+            "description": "The ID of the quiz."
+          },
+          {
+            "in": "query",
+            "name": "title",
+            "schema": {
+              "type": "string"
+            },
+            "description": "The title of the quiz."
+          },
+          {
+            "in": "query",
+            "name": "owneremail",
+            "schema": {
+              "type": "string"
+            },
+            "description": "The email of the owner of the quiz."
+          }
+        ],
         "responses": {
           "200": {
-            "description": "Quizzes retrieved successfully",
+            "description": "Quiz(zes) retrieved successfully",
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "message": {
-                      "type": "string"
-                    }
-                  }
+                  "$ref": "#/components/schemas/Quiz"
                 }
               }
             }
           },
           "401": {
             "description": "Not authorized"
+          },
+          "404": {
+            "description": "Quiz(zes) not found"
           }
         }
       }
@@ -117,6 +141,55 @@
         "type": "http",
         "scheme": "bearer",
         "bearerFormat": "JWT"
+      }
+    },
+    "schemas": {
+      "Quiz": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "The ID of the quiz."
+          },
+          "title": {
+            "type": "string",
+            "description": "The title of the quiz."
+          },
+          "ownerEmail": {
+            "type": "string",
+            "description": "The email of the owner of the quiz."
+          },
+          "overallTimeLimit": {
+            "type": "integer",
+            "description": "The overall time limit for the quiz in seconds."
+          },
+          "quizQuestions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/QuizQuestion"
+            }
+          }
+        }
+      },
+      "QuizQuestion": {
+        "type": "object",
+        "properties": {
+          "question": {
+            "type": "string",
+            "description": "The quiz question."
+          },
+          "choices": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "description": "The choices for the question."
+            }
+          },
+          "answerInd": {
+            "type": "integer",
+            "description": "The index of the correct answer in the choices array."
+          }
+        }
       }
     }
   },
