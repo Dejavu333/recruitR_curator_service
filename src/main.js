@@ -43,10 +43,24 @@ const options = {
   apis: ['./main.js'], // point to the file where JSDoc comments are written.
 };
 const specs = swaggerJsdoc(options);
-fs.writeFileSync('../docs/OAS.json', JSON.stringify(specs, null, 2));
+fs.writeFileSync('./docs/OAS.json', JSON.stringify(specs, null, 2)); //must be ./ for debug
 
-// Middleware to validate the request
-const validateRequest = [
+// middleware to validate the request
+function createValidationMiddleware(validationChecks) {
+  return [
+    ...validationChecks,
+    async (req, res, next) => {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        res.status(400).json({ message: errors.array() });
+        return;
+      }
+      next();
+    },
+  ];
+}
+
+const validateQuizRequest =  createValidationMiddleware([
   check('owneremail')
     .optional()
     .isEmail()
@@ -63,17 +77,24 @@ const validateRequest = [
     .isLength({ min: 4 })
     .withMessage('Title must not be empty and must be longer than 3 characters'),
 
-  async (req, res, next) => {
-    // Check for validation errors
-    const errors = validationResult(req);
+  check('overallTimeLimit')
+    .optional()
+    .isInt({ min: 0 })
+    .withMessage('Overall time limit must be a positive integer'),
+]);
 
-    if (!errors.isEmpty()) {
-      return res.status(400).json({ errors: errors.array() });
-    }
+validateLoginRequest = createValidationMiddleware([
+  check('email')
+    .isEmail()
+    .withMessage('Invalid email format'),
 
-    next(); // Proceed to the route handler if validation passes
-  }
-];
+  check('password')
+    .notEmpty()
+    .withMessage('Password must not be empty')
+    .isLength({ min: 8 })
+    .withMessage('Password must be at least 8 characters long'),
+]);
+
 
 //-------------------------------------------------------------------------
 // identity provider service related endpoints
@@ -104,16 +125,12 @@ const validateRequest = [
  *         description: Bad request
  */
 app.post(`/api/v1/${REGISTER_ROUTE}`, async (req, res) => {
-  // if (!req.body.email|| !req.body.password) {
-  //   res.status(400).json({ message: "Bad request!" });
-  //   return;
-  // }  
   // todo syntactic validation
   try {
     const registerResult = await axios.post(IDENTITY_PROVIDER_SERVICE_HOST + ':' + IDENTITY_PROVIDER_SERVICE_PORT + `/api/v1/${REGISTER_ROUTE}`, req.body);
     res.json(registerResult.data);
   } catch (error) {
-    res.status(error.response.status).json(error.response.data);
+    res.json(error.code);
   }
 });
 
@@ -142,16 +159,12 @@ app.post(`/api/v1/${REGISTER_ROUTE}`, async (req, res) => {
  *       400:
  *         description: Bad request
  */
-app.post(`/api/v1/${AUTHN_ROUTE}`, async (req, res) => {
-  // if (!req.body.email || !req.body.password) {
-  //   res.status(400).json({ message: "Bad request!" });
-  //   return;
-  // }
+app.post(`/api/v1/${AUTHN_ROUTE}`, validateLoginRequest, async (req, res) => {
   try {
-    const authNResult = await axios.post(IDENTITY_PROVIDER_SERVICE_HOST + ':' + IDENTITY_PROVIDER_SERVICE_PORT + `/api/v1/${AUTHN_ROUTE}`, req.body);
+    authNResult = await axios.post(IDENTITY_PROVIDER_SERVICE_HOST + ':' + IDENTITY_PROVIDER_SERVICE_PORT + `/api/v1/${AUTHN_ROUTE}`, req.body);
     res.json(authNResult.data);
   } catch (error) {
-    res.status(error.response.status).json(error.response.data);
+    res.json(error.code);
   }
 });
 
@@ -193,15 +206,14 @@ app.post(`/api/v1/${AUTHN_ROUTE}`, async (req, res) => {
  *       404:
  *        description: Quiz(zes) not found
  */
-app.get('/api/v1/browse_quizzes', validateRequest, async (req, res) => {
+app.get('/api/v1/browse_quizzes', validateQuizRequest, async (req, res) => {
   // if (! await isAuthorized(req)) res.json({ message: "Not authorized!" });
 
   try {
     const browseQuizzesResult = await axios.get(QUIZ_SERVICE_HOST + ':' + QUIZ_SERVICE_PORT + `/api/v1/browse_quizzes`, { params: req.query });
     res.json(browseQuizzesResult.data);
   } catch (error) {
-    res.json(error.response.statusText);
-    console.log(error);
+    res.json(error.code);
   }
 });
 
