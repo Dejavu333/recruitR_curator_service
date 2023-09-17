@@ -160,11 +160,16 @@ app.post(`/api/v1/${REGISTER_ROUTE}`, async (req, res) => {
  *         description: Bad request
  */
 app.post(`/api/v1/${AUTHN_ROUTE}`, validateLoginRequest, async (req, res) => {
+  let authNResult;
   try {
     authNResult = await axios.post(IDENTITY_PROVIDER_SERVICE_HOST + ':' + IDENTITY_PROVIDER_SERVICE_PORT + `/api/v1/${AUTHN_ROUTE}`, req.body);
     res.json(authNResult.data);
   } catch (error) {
-    res.json(error.code);
+    if (error.response!=undefined) {
+      res.json({ errcode: error.code, detail: error.response.data.detail});
+    } else {
+      res.json({ errcode: error.code});
+    }
   }
 });
 
