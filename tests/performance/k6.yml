@@ -1,0 +1,19 @@
+version: '3'
+services:
+
+  openapi-generator:
+    image: openapitools/openapi-generator-cli
+    volumes:
+      - ..\..\docs\OAS.json:/local/openapi.json
+      - ./output:/local/output
+    command: generate -i /local/openapi.json -g k6 -o /local/output/ --skip-validate-spec
+
+  k6:
+    image: loadimpact/k6
+    depends_on:
+      - openapi-generator
+    volumes:
+      - ./output:/tests
+    command: run /tests/script.js
+
+# docker-compose -f k6.yml up
