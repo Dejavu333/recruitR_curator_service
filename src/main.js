@@ -20,6 +20,10 @@ const IDENTITY_PROVIDER_SERVICE_PORT = process.env.IDNTITY_PROVIDER_SERVICE_PORT
 //quiz_service
 const QUIZ_SERVICE_HOST = process.env.QUIZ_SERVICE_HOST_ENVV || "http://localhost"
 const QUIZ_SERVICE_PORT = process.env.QUIZ_SERVICE_PORT_ENVV || 5100;
+const LIST_QUIZZES_ROUTE = process.env.LIST_QUIZZES_ROUTE_ENVV || "list-quizzes";
+const QUIZ_SERVICE_LIST_QUIZZES_ROUTE = process.env.QUIZ_SERVICE_LIST_QUIZZES_ROUTE_ENV || "RetrieveQuizzesForUserUI_REST_V1";
+const UPSERT_QUIZ_ROUTE = process.env.UPSERT_QUIZ_ROUTE_ENVV || "upsert-quiz";
+const QUIZ_SERVICE_UPSERT_QUIZ_ROUTE = process.env.QUIZ_SERVICE_UPSERT_QUIZ_ROUTE_ENV || "UpsertQuiz_REST_V1";
 
 // webapp
 const app = express();
@@ -60,7 +64,7 @@ function createValidationMiddleware(validationChecks) {
   ];
 }
 
-const validateQuizRequest =  createValidationMiddleware([
+const validateQuizRequest = createValidationMiddleware([
   check('owneremail')
     .optional()
     .isEmail()
@@ -165,10 +169,10 @@ app.post(`/api/v1/${AUTHN_ROUTE}`, validateLoginRequest, async (req, res) => {
     authNResult = await axios.post(IDENTITY_PROVIDER_SERVICE_HOST + ':' + IDENTITY_PROVIDER_SERVICE_PORT + `/api/v1/${AUTHN_ROUTE}`, req.body);
     res.json(authNResult.data);
   } catch (error) {
-    if (error.response!=undefined) {
-      res.json({ errcode: error.code, detail: error.response.data.detail});
+    if (error.response != undefined) {
+      res.json({ errcode: error.code, detail: error.response.data.detail });
     } else {
-      res.json({ errcode: error.code});
+      res.json({ errcode: error.code });
     }
   }
 });
@@ -211,37 +215,41 @@ app.post(`/api/v1/${AUTHN_ROUTE}`, validateLoginRequest, async (req, res) => {
  *       404:
  *        description: Quiz(zes) not found
  */
-app.get('/api/v1/browse_quizzes', validateQuizRequest, async (req, res) => {
+app.get(`/api/v1/${LIST_QUIZZES_ROUTE}`, validateQuizRequest, async (req, res) => {
   // if (! await isAuthorized(req)) res.json({ message: "Not authorized!" });
 
   try {
-    const browseQuizzesResult = await axios.get(QUIZ_SERVICE_HOST + ':' + QUIZ_SERVICE_PORT + `/api/v1/browse_quizzes`, { params: req.query });
-    res.json(browseQuizzesResult.data);
+    const listQuizzesResult = await axios.get(QUIZ_SERVICE_HOST + ':' + QUIZ_SERVICE_PORT + "/" + QUIZ_SERVICE_LIST_QUIZZES_ROUTE, { params: req.query });
+    res.json(listQuizzesResult.data);
   } catch (error) {
-    res.json(error.code);
+    if (error.response != undefined) {
+      res.json({ errcode: error.code, detail: error.response.data.title });
+    } else {
+      res.json({ errcode: error.code });
+    }
   }
 });
 
-app.post('/api/v1/create-quiz', (req, res) => {
+app.post('/api/v1/upsert-quiz', (req, res) => {
   // Implement logic to create a quiz here
 });
 
-app.get('/api/v1/get-quiz-link', (req, res) => {
-  // Implement logic to get a link to a quiz based on email, quiz, and expiration date here
+app.post('/api/v1/delete-quiz', (req, res) => {
+  // Implement logic to create a quiz here
 });
 
-app.get('/api/v1/get-quiz-stats', (req, res) => {
+app.get('/api/v1/get-quizinstance-stats', (req, res) => {
   // Implement logic to get current stats on quiz instances here
 });
 
 //-------------------------------------------------------------------------
 // notifier service && quiz service related endpoints
 //-------------------------------------------------------------------------
-app.post('/api/v1/send-quiz-link', (req, res) => {
+app.post('/api/v1/deploy-quiz-and-notify-candidates', (req, res) => {
   // Implement logic to send a link to a quiz to given emails here
 });
 
-app.post('/api/v1/send-results', (req, res) => {
+app.post('/api/v1/send-ranking-to-user', (req, res) => {
   // Implement logic to send quiz results to HR email here
 });
 
